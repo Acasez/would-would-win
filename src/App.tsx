@@ -107,7 +107,7 @@ export default function App() {
         },
         {
           id: 2,
-          name: "Laevælin",
+          name: "Laezel",
           source: "Baldur's Gate 3",
           wins: 0,
           losses: 0,
@@ -344,7 +344,9 @@ export default function App() {
           }
           onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
         >
-          <h2 style={{ margin: "0 0 0.5rem" }}>{leftChar.name}</h2>
+          <h2 style={{ margin: "0 0 0.5rem", color: "black" }}>
+            {leftChar.name}
+          </h2>
           <p style={{ color: "#666", margin: 0 }}>{leftChar.source}</p>
           <div style={{ marginTop: "1rem" }}>
             <strong>ELO: {leftChar.elo}</strong>
@@ -369,7 +371,9 @@ export default function App() {
           }
           onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
         >
-          <h2 style={{ margin: "0 0 0.5rem" }}>{rightChar.name}</h2>
+          <h2 style={{ margin: "0 0 0.5rem", color: "black" }}>
+            {rightChar.name}
+          </h2>
           <p style={{ color: "#666", margin: 0 }}>{rightChar.source}</p>
           <div style={{ marginTop: "1rem" }}>
             <strong>ELO: {rightChar.elo}</strong>
