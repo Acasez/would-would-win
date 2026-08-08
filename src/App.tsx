@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface ICharacter {
   id: number;
@@ -9,9 +9,8 @@ interface ICharacter {
   elo: number;
 }
 
-const K_FACTOR = 32; // Standard for casual ELO systems
+const K_FACTOR = 32;
 
-// Calculate new ELO ratings after a match
 function calculateNewElo(
   winnerId: number,
   loserId: number,
@@ -30,60 +29,52 @@ function calculateNewElo(
   return charCopy;
 }
 
-export default function App() {
-  const [characters, setCharacters] = useState<ICharacter[]>([
-    {
-      id: 1,
-      name: "Edward Elric",
-      source: "Fullmetal Alchemist",
-      wins: 0,
-      losses: 0,
-      elo: 1000,
-    },
-    {
-      id: 2,
-      name: "Laezel",
-      source: "Baldur's Gate 3",
-      wins: 0,
-      losses: 0,
-      elo: 1000,
-    },
-    {
-      id: 3,
-      name: "Corin Cadence",
-      source: "Arcane Ascension",
-      wins: 0,
-      losses: 0,
-      elo: 1000,
-    },
-    {
-      id: 4,
-      name: "Cassian Andor",
-      source: "Andor",
-      wins: 0,
-      losses: 0,
-      elo: 1000,
-    },
-  ]);
+// Parse CSV content into character objects
+function parseCSV(
+  csvContent: string,
+): Omit<ICharacter, "wins" | "losses" | "elo">[] {
+  const lines = csvContent.trim().split("\n");
 
+  // Skip header row
+  const dataLines = lines.slice(1);
+
+  return dataLines
+    .map((line) => {
+      // Handle CSV parsing (including quoted fields with commas)
+      const fields: string[] = [];
+      let current = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === "," && !inQuotes) {
+          fields.push(current.trim());
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+      fields.push(current.trim());
+
+      // Map columns: ID, Name, Source, Source Type (optional)
+      const id = parseInt(fields[0]) || 0;
+      const name = fields[1] || "Unknown";
+      const source = fields[2] || "Unknown";
+
+      return { id, name, source };
+    })
+    .filter((c) => c.id > 0);
+}
+
+export default function App() {
+  const [characters, setCharacters] = useState<ICharacter[]>([]);
   const [leftChar, setLeftChar] = useState<ICharacter | null>(null);
   const [rightChar, setRightChar] = useState<ICharacter | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load from localStorage on mount
-  useEffect(() => {
-    const saved = localStorage.getItem("battleCharacters");
-    if (saved) {
-      setCharacters(JSON.parse(saved));
-    }
-    pickNewPair();
-  }, []);
-
-  // Save to localStorage whenever characters change
-  useEffect(() => {
-    localStorage.setItem("battleCharacters", JSON.stringify(characters));
-  }, [characters]);
-
-  // Pick two random characters for comparison
   const pickNewPair = () => {
     if (characters.length < 2) return;
 
@@ -97,14 +88,127 @@ export default function App() {
     setRightChar(characters[rightIndex]);
   };
 
-  // Handle voting
+  // Load from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem("battleCharacters");
+    let initialChars: ICharacter[];
+
+    if (saved) {
+      initialChars = JSON.parse(saved);
+    } else {
+      initialChars = [
+        {
+          id: 1,
+          name: "Edward Elric",
+          source: "Fullmetal Alchemist",
+          wins: 0,
+          losses: 0,
+          elo: 1000,
+        },
+        {
+          id: 2,
+          name: "Laevælin",
+          source: "Baldur's Gate 3",
+          wins: 0,
+          losses: 0,
+          elo: 1000,
+        },
+        {
+          id: 3,
+          name: "Corin Cadence",
+          source: "Arcane Ascension",
+          wins: 0,
+          losses: 0,
+          elo: 1000,
+        },
+        {
+          id: 4,
+          name: "Cassian Andor",
+          source: "Andor",
+          wins: 0,
+          losses: 0,
+          elo: 1000,
+        },
+      ];
+    }
+
+    setCharacters(initialChars);
+  }, []);
+
+  // Pick pair after characters load
+  useEffect(() => {
+    if (characters.length >= 2 && !loaded) {
+      pickNewPair();
+      setLoaded(true);
+    }
+  }, [characters]);
+
+  // Save to localStorage whenever characters change
+  useEffect(() => {
+    if (characters.length > 0) {
+      localStorage.setItem("battleCharacters", JSON.stringify(characters));
+    }
+  }, [characters]);
+
+  // Handle CSV file import
+  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const content = e.target?.result as string;
+      const parsedData = parseCSV(content);
+
+      if (parsedData.length === 0) {
+        alert("No valid characters found in CSV!");
+        return;
+      }
+
+      // Merge with existing characters (avoid duplicates by ID)
+      setCharacters((prev) => {
+        const existingIds = new Set(prev.map((c) => c.id));
+
+        const newCharacters: ICharacter[] = parsedData
+          .filter((c) => !existingIds.has(c.id))
+          .map((c) => ({
+            ...c,
+            wins: 0,
+            losses: 0,
+            elo: 1000,
+          }));
+
+        // Keep existing characters' stats, add new ones
+        const merged = [...prev, ...newCharacters];
+
+        // Trigger file input reset
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+
+        return merged;
+      });
+
+      /* alert(
+        `Imported ${parsedData.length} characters (${parsedData.length - (characters.length - merged.length)} new)`,
+      ); */
+    };
+
+    reader.readAsText(file);
+  };
+
+  // Manual trigger for file input
+  const triggerImport = () => {
+    fileInputRef.current?.click();
+  };
+
   const handleVote = (winnerId: number) => {
-    const loserId = winnerId === leftChar!.id ? rightChar!.id : leftChar!.id;
+    if (!leftChar || !rightChar) return;
+
+    const loserId = winnerId === leftChar.id ? rightChar.id : leftChar.id;
 
     const updatedChars = calculateNewElo(winnerId, loserId, characters);
-    setCharacters(updatedChars);
 
-    // Increment/decrement win/loss stats
     const winnersIndex = updatedChars.findIndex((c) => c.id === winnerId);
     const losersIndex = updatedChars.findIndex((c) => c.id === loserId);
     updatedChars[winnersIndex].wins++;
@@ -114,13 +218,29 @@ export default function App() {
     pickNewPair();
   };
 
-  // Reset all data
   const resetData = () => {
-    localStorage.removeItem("battleCharacters");
-    window.location.reload();
+    if (confirm("Are you sure? This will delete all battle history!")) {
+      localStorage.removeItem("battleCharacters");
+      window.location.reload();
+    }
   };
 
-  if (!leftChar || !rightChar) return <div>Loading...</div>;
+  const exportData = () => {
+    const dataStr = JSON.stringify(characters, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "battle_characters.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  if (characters.length < 2 || !leftChar || !rightChar) {
+    return (
+      <div style={{ padding: "2rem", textAlign: "center" }}>Loading...</div>
+    );
+  }
 
   return (
     <div
@@ -135,6 +255,70 @@ export default function App() {
         ⚔️ Who Would Win?
       </h1>
 
+      {/* Import/Export Controls */}
+      <div
+        style={{
+          display: "flex",
+          gap: "1rem",
+          justifyContent: "center",
+          marginBottom: "2rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv"
+          onChange={handleFileImport}
+          style={{ display: "none" }}
+        />
+
+        <button
+          onClick={triggerImport}
+          style={{
+            padding: "0.5rem 1rem",
+            fontSize: "0.9rem",
+            backgroundColor: "#4CAF50",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+          }}
+        >
+          📥 Import CSV
+        </button>
+
+        <button
+          onClick={exportData}
+          style={{
+            padding: "0.5rem 1rem",
+            fontSize: "0.9rem",
+            backgroundColor: "#2196F3",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+          }}
+        >
+          💾 Export Backup
+        </button>
+
+        <button
+          onClick={resetData}
+          style={{
+            padding: "0.5rem 1rem",
+            fontSize: "0.9rem",
+            backgroundColor: "#ff4757",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+          }}
+        >
+          🗑️ Reset
+        </button>
+      </div>
+
       {/* Battle Cards */}
       <div
         style={{
@@ -144,17 +328,21 @@ export default function App() {
           marginBottom: "2rem",
         }}
       >
-        {/* Left Character */}
         <div
+          onClick={() => handleVote(leftChar.id)}
           style={{
             border: "2px solid #ddd",
             borderRadius: "12px",
             padding: "1.5rem",
             backgroundColor: "#fafafa",
-            transition: "transform 0.2s",
             cursor: "pointer",
+            transition: "transform 0.2s",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
           }}
-          onClick={() => handleVote(leftChar.id)}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.transform = "scale(1.02)")
+          }
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
         >
           <h2 style={{ margin: "0 0 0.5rem" }}>{leftChar.name}</h2>
           <p style={{ color: "#666", margin: 0 }}>{leftChar.source}</p>
@@ -165,16 +353,21 @@ export default function App() {
           </div>
         </div>
 
-        {/* Right Character */}
         <div
+          onClick={() => handleVote(rightChar.id)}
           style={{
             border: "2px solid #ddd",
             borderRadius: "12px",
             padding: "1.5rem",
             backgroundColor: "#fafafa",
             cursor: "pointer",
+            transition: "transform 0.2s",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
           }}
-          onClick={() => handleVote(rightChar.id)}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.transform = "scale(1.02)")
+          }
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
         >
           <h2 style={{ margin: "0 0 0.5rem" }}>{rightChar.name}</h2>
           <p style={{ color: "#666", margin: 0 }}>{rightChar.source}</p>
@@ -186,7 +379,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* VS Badge */}
       <div
         style={{
           textAlign: "center",
@@ -199,76 +391,127 @@ export default function App() {
         VS
       </div>
 
-      {/* Control Buttons */}
-      <div
-        style={{
-          textAlign: "center",
-          display: "flex",
-          gap: "1rem",
-          justifyContent: "center",
-        }}
-      >
+      {/* Skip Button */}
+      <div style={{ textAlign: "center", marginBottom: "3rem" }}>
         <button
           onClick={pickNewPair}
           style={{
-            padding: "0.75rem 1.5rem",
+            padding: "0.75rem 2rem",
             fontSize: "1rem",
             backgroundColor: "#6d4aff",
             color: "white",
             border: "none",
             borderRadius: "8px",
             cursor: "pointer",
+            boxShadow: "0 4px 12px rgba(109, 78, 255, 0.3)",
           }}
         >
           Skip →
         </button>
-        <button
-          onClick={resetData}
-          style={{
-            padding: "0.75rem 1.5rem",
-            fontSize: "1rem",
-            backgroundColor: "#ff4757",
-            color: "white",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-          }}
-        >
-          Reset All Data
-        </button>
       </div>
 
-      {/* Leaderboard Preview */}
+      {/* Leaderboard */}
       <div style={{ marginTop: "3rem" }}>
-        <h2>🏆 Leaderboard</h2>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ borderBottom: "2px solid #eee" }}>
-              <th style={{ padding: "0.5rem", textAlign: "left" }}>Rank</th>
-              <th style={{ padding: "0.5rem", textAlign: "left" }}>Name</th>
-              <th style={{ padding: "0.5rem", textAlign: "left" }}>Source</th>
-              <th style={{ padding: "0.5rem", textAlign: "right" }}>ELO</th>
-              <th style={{ padding: "0.5rem", textAlign: "right" }}>Record</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[...characters]
-              .sort((a, b) => b.elo - a.elo)
-              .map((char, index) => (
-                <tr key={char.id} style={{ borderBottom: "1px solid #eee" }}>
-                  <td style={{ padding: "0.5rem" }}>{index + 1}</td>
-                  <td style={{ padding: "0.5rem" }}>{char.name}</td>
-                  <td style={{ padding: "0.5rem" }}>{char.source}</td>
-                  <td style={{ padding: "0.5rem", textAlign: "right" }}>
-                    {char.elo}
-                  </td>
-                  <td style={{ padding: "0.5rem", textAlign: "right" }}>
-                    {char.wins}-{char.losses} ({char.wins + char.losses})
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+        <h2>🏆 Leaderboard ({characters.length} characters)</h2>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ borderBottom: "2px solid #eee" }}>
+                <th style={{ padding: "0.75rem", textAlign: "left" }}>Rank</th>
+                <th style={{ padding: "0.75rem", textAlign: "left" }}>Name</th>
+                <th style={{ padding: "0.75rem", textAlign: "left" }}>
+                  Source
+                </th>
+                <th style={{ padding: "0.75rem", textAlign: "right" }}>ELO</th>
+                <th style={{ padding: "0.75rem", textAlign: "right" }}>
+                  Win Rate
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {[...characters]
+                .sort((a, b) => b.elo - a.elo)
+                .slice(0, 20)
+                .map((char, index) => {
+                  const totalMatches = char.wins + char.losses;
+                  const winRate =
+                    totalMatches > 0
+                      ? ((char.wins / totalMatches) * 100).toFixed(0)
+                      : 0;
+
+                  return (
+                    <tr
+                      key={char.id}
+                      style={{ borderBottom: "1px solid #eee" }}
+                    >
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          fontWeight: index < 3 ? "bold" : "normal",
+                        }}
+                      >
+                        {index + 1}
+                      </td>
+                      <td style={{ padding: "0.75rem" }}>{char.name}</td>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          color: "#666",
+                          fontSize: "0.9rem",
+                        }}
+                      >
+                        {char.source}
+                      </td>
+                      <td
+                        style={{
+                          padding: "0.75rem",
+                          textAlign: "right",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {char.elo}
+                      </td>
+                      <td style={{ padding: "0.75rem", textAlign: "right" }}>
+                        {totalMatches > 0 ? `${winRate}%` : "N/A"}
+                      </td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Import Instructions */}
+      <div
+        style={{
+          marginTop: "2rem",
+          padding: "1rem",
+          backgroundColor: "#f0f0f0",
+          borderRadius: "8px",
+          fontSize: "0.85rem",
+          color: "#666",
+        }}
+      >
+        <strong>📋 How to Import CSV:</strong>
+        <ol style={{ margin: "0.5rem 0 0 1.5rem" }}>
+          <li>
+            In Google Sheets, go to{" "}
+            <em>File → Download → Comma-separated values (.csv)</em>
+          </li>
+          <li>
+            Ensure columns are in order: <code>ID</code>, <code>Name</code>,{" "}
+            <code>Source</code>, <code>Source Type</code> (optional)
+          </li>
+          <li>
+            Click <strong>📥 Import CSV</strong> button above and select the
+            downloaded file
+          </li>
+          <li>
+            New characters are added with ELO 1000; existing IDs keep their
+            stats
+          </li>
+        </ol>
       </div>
     </div>
   );
