@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 interface ICharacter {
   id: number;
@@ -79,7 +79,7 @@ export default function App() {
   const [lastMatch, setLastMatch] = useState<IMatchHistory | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const pickNewPair = () => {
+  const pickNewPair = useCallback(() => {
     if (characters.length < 2) return;
 
     let leftIndex, rightIndex;
@@ -90,7 +90,7 @@ export default function App() {
 
     setLeftChar(characters[leftIndex]);
     setRightChar(characters[rightIndex]);
-  };
+  }, [characters]);
 
   useEffect(() => {
     const saved = localStorage.getItem("battleCharacters");
@@ -191,41 +191,42 @@ export default function App() {
     fileInputRef.current?.click();
   };
 
-  const handleVote = (winnerId: number) => {
-    if (!leftChar || !rightChar) return;
+  const handleVote = useCallback(
+    (winnerId: number) => {
+      if (!leftChar || !rightChar) return;
 
-    const loserId = winnerId === leftChar.id ? rightChar.id : leftChar.id;
-    const winner = characters.find((c) => c.id === winnerId)!;
-    const loser = characters.find((c) => c.id === loserId)!;
+      const loserId = winnerId === leftChar.id ? rightChar.id : leftChar.id;
+      const winner = characters.find((c) => c.id === winnerId)!;
+      const loser = characters.find((c) => c.id === loserId)!;
 
-    // Save snapshot for undo BEFORE making changes
-    setLastMatch({
-      prevCharacters: characters.map((c) => ({ ...c })),
-      prevLeft: { ...leftChar },
-      prevRight: { ...rightChar },
-      winnerName: winner.name,
-      loserName: loser.name,
-    });
+      setLastMatch({
+        prevCharacters: characters.map((c) => ({ ...c })),
+        prevLeft: { ...leftChar },
+        prevRight: { ...rightChar },
+        winnerName: winner.name,
+        loserName: loser.name,
+      });
 
-    const updatedChars = calculateNewElo(winnerId, loserId, characters);
+      const updatedChars = calculateNewElo(winnerId, loserId, characters);
+      const winnersIndex = updatedChars.findIndex((c) => c.id === winnerId);
+      const losersIndex = updatedChars.findIndex((c) => c.id === loserId);
+      updatedChars[winnersIndex].wins++;
+      updatedChars[losersIndex].losses++;
 
-    const winnersIndex = updatedChars.findIndex((c) => c.id === winnerId);
-    const losersIndex = updatedChars.findIndex((c) => c.id === loserId);
-    updatedChars[winnersIndex].wins++;
-    updatedChars[losersIndex].losses++;
+      setCharacters([...updatedChars]);
+      pickNewPair();
+    },
+    [leftChar, rightChar, characters, pickNewPair], // ← dependency array
+  );
 
-    setCharacters([...updatedChars]);
-    pickNewPair();
-  };
-
-  const handleUndo = () => {
+  const handleUndo = useCallback(() => {
     if (!lastMatch) return;
 
     setCharacters(lastMatch.prevCharacters);
     setLeftChar(lastMatch.prevLeft);
     setRightChar(lastMatch.prevRight);
     setLastMatch(null);
-  };
+  }, [lastMatch]);
 
   const resetData = () => {
     if (confirm("Are you sure? This will delete all battle history!")) {
@@ -245,11 +246,56 @@ export default function App() {
     URL.revokeObjectURL(url);
   };
 
+  // Keyboard shortcuts: ← left, → right, ↑ undo, ↓ skip
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case "ArrowLeft":
+          e.preventDefault();
+          if (leftChar) handleVote(leftChar.id);
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          if (rightChar) handleVote(rightChar.id);
+          break;
+        case "ArrowUp":
+          e.preventDefault();
+          handleUndo();
+          break;
+        case "ArrowDown":
+          e.preventDefault();
+          pickNewPair();
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [leftChar, rightChar, handleVote, handleUndo, pickNewPair]);
+
   if (characters.length < 2 || !leftChar || !rightChar) {
     return (
       <div style={{ padding: "2rem", textAlign: "center" }}>Loading...</div>
     );
   }
+
+  const controlsHint = (key: string, label: string) => (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: "0.35rem",
+        padding: "0.2rem 0.5rem",
+        backgroundColor: "#eee",
+        borderRadius: "4px",
+        fontSize: "0.8rem",
+        color: "#555",
+      }}
+    >
+      <kbd style={{ fontFamily: "monospace", fontSize: "0.75rem" }}>{key}</kbd>
+      <span>{label}</span>
+    </span>
+  );
 
   return (
     <div
@@ -363,6 +409,22 @@ export default function App() {
         >
           🗑️ Reset
         </button>
+      </div>
+
+      {/* Keyboard Hint Bar */}
+      <div
+        style={{
+          display: "flex",
+          gap: "1rem",
+          justifyContent: "center",
+          marginBottom: "1.5rem",
+          flexWrap: "wrap",
+        }}
+      >
+        {controlsHint("←", "Vote Left")}
+        {controlsHint("→", "Vote Right")}
+        {controlsHint("↑", "Undo")}
+        {controlsHint("↓", "Skip")}
       </div>
 
       {/* Battle Cards */}
