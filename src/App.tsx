@@ -17,7 +17,7 @@ interface IMatchHistory {
   loserName: string;
 }
 
-const K_FACTOR = 32;
+const K_FACTOR = 48;
 
 function calculateNewElo(
   winnerId: number,
@@ -77,6 +77,13 @@ export default function App() {
   const [rightChar, setRightChar] = useState<ICharacter | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [lastMatch, setLastMatch] = useState<IMatchHistory | null>(null);
+  const [topTenNotices, setTopTenNotices] = useState<
+    {
+      name: string;
+      type: "in" | "out";
+    }[]
+  >([]);
+  const topTenRef = useRef<number[]>([]); // Store IDs of previous top 10
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const pickNewPair = useCallback(() => {
@@ -218,10 +225,43 @@ export default function App() {
       updatedChars[winnersIndex].wins++;
       updatedChars[losersIndex].losses++;
 
+      // --- TOP 10 NOTICE LOGIC STARTS HERE ---
+      const MIN_CHARS_FOR_TOP_TEN_NOTICES = 30;
+
+      if (updatedChars.length >= MIN_CHARS_FOR_TOP_TEN_NOTICES) {
+        const newSorted = [...updatedChars].sort((a, b) => b.elo - a.elo);
+        const newTopTenIds = newSorted.slice(0, 10).map((c) => c.id);
+        const prevTopTenIds = topTenRef.current;
+
+        const entered = newTopTenIds.filter(
+          (id) => !prevTopTenIds.includes(id),
+        );
+        const exited = prevTopTenIds.filter((id) => !newTopTenIds.includes(id));
+
+        const notices: { name: string; type: "in" | "out" }[] = [
+          ...entered.map((id) => ({
+            name: updatedChars.find((c) => c.id === id)?.name || "",
+            type: "in" as const,
+          })),
+          ...exited.map((id) => ({
+            name: updatedChars.find((c) => c.id === id)?.name || "",
+            type: "out" as const,
+          })),
+        ];
+
+        if (notices.length > 0) {
+          setTopTenNotices(notices);
+          setTimeout(() => setTopTenNotices([]), 5000);
+        }
+
+        topTenRef.current = newTopTenIds;
+      }
+      // --- TOP 10 NOTICE LOGIC ENDS HERE ---
+
       setCharacters([...updatedChars]);
       pickNewPair();
     },
-    [leftChar, rightChar, characters, pickNewPair], // ← dependency array
+    [leftChar, rightChar, characters, pickNewPair], // ← Note: removed topTenNotices from deps
   );
 
   const handleUndo = useCallback(() => {
@@ -349,6 +389,33 @@ export default function App() {
           >
             ↩️ Undo Vote
           </button>
+        </div>
+      )}
+
+      {/* Top 10 Movement Notice */}
+      {topTenNotices.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0.75rem 1.25rem",
+            marginBottom: "1.5rem",
+            backgroundColor: "#e8f5e9",
+            border: "1px solid #81c784",
+            borderRadius: "8px",
+          }}
+        >
+          <span style={{ fontSize: "1.2rem" }}>📈</span>
+          <span style={{ fontSize: "0.9rem", color: "#2e7d32" }}>
+            {topTenNotices.map((n, i) => (
+              <span key={i}>
+                <strong>{n.name}</strong>{" "}
+                {n.type === "in" ? "moved into" : "fell out of"} top 10
+                {i < topTenNotices.length - 1 ? ", " : ""}
+              </span>
+            ))}
+          </span>
         </div>
       )}
 
