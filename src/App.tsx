@@ -166,19 +166,24 @@ export default function App() {
       }
 
       setCharacters((prev) => {
-        const existingIds = new Set(prev.map((c) => c.id));
+        // Keep characters with match history, drop untouched defaults
+        const battledChars = prev.filter((c) => c.wins > 0 || c.losses > 0);
+
+        const existingIds = new Set(battledChars.map((c) => c.id));
         const newCharacters: ICharacter[] = parsedData
           .filter((c) => !existingIds.has(c.id))
           .map((c) => ({ ...c, wins: 0, losses: 0, elo: 1000 }));
 
-        const merged = [...prev, ...newCharacters];
+        const merged = [...battledChars, ...newCharacters];
 
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
 
+        const droppedCount = prev.length - battledChars.length;
         alert(
-          `Imported ${newCharacters.length} new character(s) out of ${parsedData.length} total.`,
+          `Imported ${newCharacters.length} character(s).\n` +
+            `${droppedCount > 0 ? `Removed ${droppedCount} demo character(s) with no match history.` : ""}`,
         );
         return merged;
       });
