@@ -9,6 +9,14 @@ interface ICharacter {
   elo: number;
 }
 
+interface IMatchHistory {
+  prevCharacters: ICharacter[];
+  prevLeft: ICharacter;
+  prevRight: ICharacter;
+  winnerName: string;
+  loserName: string;
+}
+
 const K_FACTOR = 32;
 
 function calculateNewElo(
@@ -29,18 +37,14 @@ function calculateNewElo(
   return charCopy;
 }
 
-// Parse CSV content into character objects
 function parseCSV(
   csvContent: string,
 ): Omit<ICharacter, "wins" | "losses" | "elo">[] {
   const lines = csvContent.trim().split("\n");
-
-  // Skip header row
   const dataLines = lines.slice(1);
 
   return dataLines
     .map((line) => {
-      // Handle CSV parsing (including quoted fields with commas)
       const fields: string[] = [];
       let current = "";
       let inQuotes = false;
@@ -58,7 +62,6 @@ function parseCSV(
       }
       fields.push(current.trim());
 
-      // Map columns: ID, Name, Source, Source Type (optional)
       const id = parseInt(fields[0]) || 0;
       const name = fields[1] || "Unknown";
       const source = fields[2] || "Unknown";
@@ -73,6 +76,7 @@ export default function App() {
   const [leftChar, setLeftChar] = useState<ICharacter | null>(null);
   const [rightChar, setRightChar] = useState<ICharacter | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [lastMatch, setLastMatch] = useState<IMatchHistory | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const pickNewPair = () => {
@@ -88,7 +92,6 @@ export default function App() {
     setRightChar(characters[rightIndex]);
   };
 
-  // Load from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem("battleCharacters");
     let initialChars: ICharacter[];
@@ -107,7 +110,7 @@ export default function App() {
         },
         {
           id: 2,
-          name: "Laezel",
+          name: "Lae'zel",
           source: "Baldur's Gate 3",
           wins: 0,
           losses: 0,
@@ -135,7 +138,6 @@ export default function App() {
     setCharacters(initialChars);
   }, []);
 
-  // Pick pair after characters load
   useEffect(() => {
     if (characters.length >= 2 && !loaded) {
       pickNewPair();
@@ -143,14 +145,12 @@ export default function App() {
     }
   }, [characters]);
 
-  // Save to localStorage whenever characters change
   useEffect(() => {
     if (characters.length > 0) {
       localStorage.setItem("battleCharacters", JSON.stringify(characters));
     }
   }, [characters]);
 
-  // Handle CSV file import
   const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -165,39 +165,28 @@ export default function App() {
         return;
       }
 
-      // Merge with existing characters (avoid duplicates by ID)
       setCharacters((prev) => {
         const existingIds = new Set(prev.map((c) => c.id));
-
         const newCharacters: ICharacter[] = parsedData
           .filter((c) => !existingIds.has(c.id))
-          .map((c) => ({
-            ...c,
-            wins: 0,
-            losses: 0,
-            elo: 1000,
-          }));
+          .map((c) => ({ ...c, wins: 0, losses: 0, elo: 1000 }));
 
-        // Keep existing characters' stats, add new ones
         const merged = [...prev, ...newCharacters];
 
-        // Trigger file input reset
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
 
+        alert(
+          `Imported ${newCharacters.length} new character(s) out of ${parsedData.length} total.`,
+        );
         return merged;
       });
-
-      /* alert(
-        `Imported ${parsedData.length} characters (${parsedData.length - (characters.length - merged.length)} new)`,
-      ); */
     };
 
     reader.readAsText(file);
   };
 
-  // Manual trigger for file input
   const triggerImport = () => {
     fileInputRef.current?.click();
   };
@@ -206,6 +195,17 @@ export default function App() {
     if (!leftChar || !rightChar) return;
 
     const loserId = winnerId === leftChar.id ? rightChar.id : leftChar.id;
+    const winner = characters.find((c) => c.id === winnerId)!;
+    const loser = characters.find((c) => c.id === loserId)!;
+
+    // Save snapshot for undo BEFORE making changes
+    setLastMatch({
+      prevCharacters: characters.map((c) => ({ ...c })),
+      prevLeft: { ...leftChar },
+      prevRight: { ...rightChar },
+      winnerName: winner.name,
+      loserName: loser.name,
+    });
 
     const updatedChars = calculateNewElo(winnerId, loserId, characters);
 
@@ -216,6 +216,15 @@ export default function App() {
 
     setCharacters([...updatedChars]);
     pickNewPair();
+  };
+
+  const handleUndo = () => {
+    if (!lastMatch) return;
+
+    setCharacters(lastMatch.prevCharacters);
+    setLeftChar(lastMatch.prevLeft);
+    setRightChar(lastMatch.prevRight);
+    setLastMatch(null);
   };
 
   const resetData = () => {
@@ -254,6 +263,43 @@ export default function App() {
       <h1 style={{ textAlign: "center", marginBottom: "2rem" }}>
         ⚔️ Who Would Win?
       </h1>
+
+      {/* Last Match Banner + Undo */}
+      {lastMatch && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "1rem",
+            padding: "0.75rem 1.25rem",
+            marginBottom: "1.5rem",
+            backgroundColor: "#fff8e1",
+            border: "1px solid #ffe082",
+            borderRadius: "8px",
+          }}
+        >
+          <span style={{ fontSize: "0.9rem", color: "#5d4037" }}>
+            ⏪ Last match: <strong>{lastMatch.winnerName}</strong> beat{" "}
+            <strong>{lastMatch.loserName}</strong>
+          </span>
+          <button
+            onClick={handleUndo}
+            style={{
+              padding: "0.4rem 1rem",
+              fontSize: "0.85rem",
+              backgroundColor: "#ff9800",
+              color: "white",
+              border: "none",
+              borderRadius: "6px",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            ↩️ Undo Vote
+          </button>
+        </div>
+      )}
 
       {/* Import/Export Controls */}
       <div
@@ -330,6 +376,10 @@ export default function App() {
       >
         <div
           onClick={() => handleVote(leftChar.id)}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.transform = "scale(1.02)")
+          }
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
           style={{
             border: "2px solid #ddd",
             borderRadius: "12px",
@@ -339,14 +389,8 @@ export default function App() {
             transition: "transform 0.2s",
             boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
           }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.transform = "scale(1.02)")
-          }
-          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
         >
-          <h2 style={{ margin: "0 0 0.5rem", color: "black" }}>
-            {leftChar.name}
-          </h2>
+          <h2 style={{ margin: "0 0 0.5rem" }}>{leftChar.name}</h2>
           <p style={{ color: "#666", margin: 0 }}>{leftChar.source}</p>
           <div style={{ marginTop: "1rem" }}>
             <strong>ELO: {leftChar.elo}</strong>
@@ -357,6 +401,10 @@ export default function App() {
 
         <div
           onClick={() => handleVote(rightChar.id)}
+          onMouseEnter={(e) =>
+            (e.currentTarget.style.transform = "scale(1.02)")
+          }
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
           style={{
             border: "2px solid #ddd",
             borderRadius: "12px",
@@ -366,14 +414,8 @@ export default function App() {
             transition: "transform 0.2s",
             boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
           }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.transform = "scale(1.02)")
-          }
-          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
         >
-          <h2 style={{ margin: "0 0 0.5rem", color: "black" }}>
-            {rightChar.name}
-          </h2>
+          <h2 style={{ margin: "0 0 0.5rem" }}>{rightChar.name}</h2>
           <p style={{ color: "#666", margin: 0 }}>{rightChar.source}</p>
           <div style={{ marginTop: "1rem" }}>
             <strong>ELO: {rightChar.elo}</strong>
@@ -395,7 +437,6 @@ export default function App() {
         VS
       </div>
 
-      {/* Skip Button */}
       <div style={{ textAlign: "center", marginBottom: "3rem" }}>
         <button
           onClick={pickNewPair}
