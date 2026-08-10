@@ -2,7 +2,7 @@
 
 Hobby project made to learn React
 
-Website that allows you rank a list of characters using a 1v1 Elo based system.
+Website that allows you rank a list of characters using a 1v1 ELO based system. I use to rank who would win in a fight and create a ELO rating based on that but you can use any metric you want. 
 
 Allows you to import a list of characters from a CSV file, and export the data later.
 
