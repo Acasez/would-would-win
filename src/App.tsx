@@ -332,7 +332,7 @@ export default function App() {
       style={{
         fontFamily: "system-ui",
         padding: "2rem",
-        maxWidth: "800px",
+        maxWidth: "1000px",
         margin: "0 auto",
       }}
     >
@@ -473,30 +473,30 @@ export default function App() {
       {/* Battle Cards */}
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          display: "flex",
+          alignItems: "center",
           gap: "2rem",
           marginBottom: "2rem",
+          justifyContent: "center",
         }}
       >
-        <BattleCard
-          character={leftChar}
-          handleVote={handleVote} // ← Just pass the function itself
-        />
+        <BattleCard character={leftChar} handleVote={handleVote} />
+        <div
+          style={{
+            textAlign: "center",
+            verticalAlign: "center",
+            fontSize: "2rem",
+            fontWeight: "bold",
+            color: "#ff4757",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          VS
+        </div>
 
         <BattleCard character={rightChar} handleVote={handleVote} />
-      </div>
-
-      <div
-        style={{
-          textAlign: "center",
-          fontSize: "2rem",
-          fontWeight: "bold",
-          color: "#ff4757",
-          marginBottom: "2rem",
-        }}
-      >
-        VS
       </div>
 
       <div style={{ textAlign: "center", marginBottom: "3rem" }}>
