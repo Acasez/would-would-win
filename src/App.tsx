@@ -251,7 +251,7 @@ export default function App() {
 
         if (notices.length > 0) {
           setTopTenNotices(notices);
-          setTimeout(() => setTopTenNotices([]), 5000);
+          //setTimeout(() => setTopTenNotices([]), 5000);
         }
 
         topTenRef.current = newTopTenIds;
@@ -524,7 +524,9 @@ export default function App() {
             boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
           }}
         >
-          <h2 style={{ margin: "0 0 0.5rem" }}>{leftChar.name}</h2>
+          <h2 style={{ color: "black", margin: "0 0 0.5rem" }}>
+            {leftChar.name}
+          </h2>
           <p style={{ color: "#666", margin: 0 }}>{leftChar.source}</p>
           <div style={{ marginTop: "1rem" }}>
             <strong>ELO: {leftChar.elo}</strong>
@@ -549,7 +551,9 @@ export default function App() {
             boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
           }}
         >
-          <h2 style={{ margin: "0 0 0.5rem" }}>{rightChar.name}</h2>
+          <h2 style={{ color: "black", margin: "0 0 0.5rem" }}>
+            {rightChar.name}
+          </h2>
           <p style={{ color: "#666", margin: 0 }}>{rightChar.source}</p>
           <div style={{ marginTop: "1rem" }}>
             <strong>ELO: {rightChar.elo}</strong>
