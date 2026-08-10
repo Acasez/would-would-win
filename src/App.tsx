@@ -205,6 +205,34 @@ export default function App() {
     fileInputRef.current?.click();
   };
 
+  const MIN_CHARS_FOR_TOP_TEN_NOTICES = 30;
+  const updateTopTen = (updatedChars: ICharacter[]) => {
+    const newSorted = [...updatedChars].sort((a, b) => b.elo - a.elo);
+    const newTopTenIds = newSorted.slice(0, 10).map((c) => c.id);
+    const prevTopTenIds = topTenRef.current;
+
+    const entered = newTopTenIds.filter((id) => !prevTopTenIds.includes(id));
+    const exited = prevTopTenIds.filter((id) => !newTopTenIds.includes(id));
+
+    const notices: { name: string; type: "in" | "out" }[] = [
+      ...entered.map((id) => ({
+        name: updatedChars.find((c) => c.id === id)?.name || "",
+        type: "in" as const,
+      })),
+      ...exited.map((id) => ({
+        name: updatedChars.find((c) => c.id === id)?.name || "",
+        type: "out" as const,
+      })),
+    ];
+
+    if (notices.length > 0) {
+      setTopTenNotices(notices);
+      //setTimeout(() => setTopTenNotices([]), 5000);
+    }
+
+    topTenRef.current = newTopTenIds;
+  };
+
   const handleVote = useCallback(
     (winnerId: number) => {
       if (!leftChar || !rightChar) return;
@@ -227,38 +255,9 @@ export default function App() {
       updatedChars[winnersIndex].wins++;
       updatedChars[losersIndex].losses++;
 
-      // --- TOP 10 NOTICE LOGIC STARTS HERE ---
-      const MIN_CHARS_FOR_TOP_TEN_NOTICES = 30;
-
       if (updatedChars.length >= MIN_CHARS_FOR_TOP_TEN_NOTICES) {
-        const newSorted = [...updatedChars].sort((a, b) => b.elo - a.elo);
-        const newTopTenIds = newSorted.slice(0, 10).map((c) => c.id);
-        const prevTopTenIds = topTenRef.current;
-
-        const entered = newTopTenIds.filter(
-          (id) => !prevTopTenIds.includes(id),
-        );
-        const exited = prevTopTenIds.filter((id) => !newTopTenIds.includes(id));
-
-        const notices: { name: string; type: "in" | "out" }[] = [
-          ...entered.map((id) => ({
-            name: updatedChars.find((c) => c.id === id)?.name || "",
-            type: "in" as const,
-          })),
-          ...exited.map((id) => ({
-            name: updatedChars.find((c) => c.id === id)?.name || "",
-            type: "out" as const,
-          })),
-        ];
-
-        if (notices.length > 0) {
-          setTopTenNotices(notices);
-          //setTimeout(() => setTopTenNotices([]), 5000);
-        }
-
-        topTenRef.current = newTopTenIds;
+        updateTopTen(updatedChars);
       }
-      // --- TOP 10 NOTICE LOGIC ENDS HERE ---
 
       setCharacters([...updatedChars]);
       pickNewPair();
