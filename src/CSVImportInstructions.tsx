@@ -13,13 +13,14 @@ export default function CSVImportInstructions() {
       <strong>📋 How to Import CSV:</strong>
       <ol style={{ margin: "0.5rem 0 0 1.5rem" }}>
         <li>
-          In Google Sheets, go to{" "}
-          <em>File → Download → Comma-separated values (.csv)</em>
+          Make a sheet in Google Sheets (or a similar tool) with a list of
+          characters.
         </li>
         <li>
-          Ensure columns are in order: <code>ID</code>, <code>Name</code>,{" "}
-          <code>Source</code>, <code>Source Type</code> (optional)
+          The sheet should have the tabs <code>ID</code>, <code>Name</code>,{" "}
+          <code>Source</code> in that order.
         </li>
+        <li>Download the sheet as Comma-separated values (.csv) file</li>
         <li>
           Click <strong>📥 Import CSV</strong> button above and select the
           downloaded file
