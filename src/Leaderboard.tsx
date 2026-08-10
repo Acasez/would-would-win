@@ -4,6 +4,8 @@ interface LeaderboardProps {
   characters: ICharacter[];
 }
 
+const CHARACTERS_TO_DISPLAY = 10;
+
 export default function Leaderboard({ characters }: LeaderboardProps) {
   return (
     <div style={{ marginTop: "3rem" }}>
@@ -24,7 +26,7 @@ export default function Leaderboard({ characters }: LeaderboardProps) {
           <tbody>
             {[...characters]
               .sort((a, b) => b.elo - a.elo)
-              .slice(0, 20)
+              .slice(0, CHARACTERS_TO_DISPLAY)
               .map((char, index) => {
                 const totalMatches = char.wins + char.losses;
                 const winRate =

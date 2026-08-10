@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import ControlsHint from "./ControlsHint.tsx";
 import CSVImportInstructions from "./CSVImportInstructions.tsx";
 import Leaderboard from "./Leaderboard.tsx";
+import BattleCard from "./Components/BattleCard.tsx";
 
 export interface ICharacter {
   id: number;
@@ -478,59 +479,12 @@ export default function App() {
           marginBottom: "2rem",
         }}
       >
-        <div
-          onClick={() => handleVote(leftChar.id)}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.transform = "scale(1.02)")
-          }
-          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-          style={{
-            border: "2px solid #ddd",
-            borderRadius: "12px",
-            padding: "1.5rem",
-            backgroundColor: "#fafafa",
-            cursor: "pointer",
-            transition: "transform 0.2s",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-          }}
-        >
-          <h2 style={{ color: "black", margin: "0 0 0.5rem" }}>
-            {leftChar.name}
-          </h2>
-          <p style={{ color: "#666", margin: 0 }}>{leftChar.source}</p>
-          <div style={{ marginTop: "1rem" }}>
-            <strong>ELO: {leftChar.elo}</strong>
-            <br />
-            Record: {leftChar.wins}W - {leftChar.losses}L
-          </div>
-        </div>
+        <BattleCard
+          character={leftChar}
+          handleVote={handleVote} // ← Just pass the function itself
+        />
 
-        <div
-          onClick={() => handleVote(rightChar.id)}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.transform = "scale(1.02)")
-          }
-          onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-          style={{
-            border: "2px solid #ddd",
-            borderRadius: "12px",
-            padding: "1.5rem",
-            backgroundColor: "#fafafa",
-            cursor: "pointer",
-            transition: "transform 0.2s",
-            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-          }}
-        >
-          <h2 style={{ color: "black", margin: "0 0 0.5rem" }}>
-            {rightChar.name}
-          </h2>
-          <p style={{ color: "#666", margin: 0 }}>{rightChar.source}</p>
-          <div style={{ marginTop: "1rem" }}>
-            <strong>ELO: {rightChar.elo}</strong>
-            <br />
-            Record: {rightChar.wins}W - {rightChar.losses}L
-          </div>
-        </div>
+        <BattleCard character={rightChar} handleVote={handleVote} />
       </div>
 
       <div
