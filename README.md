@@ -14,4 +14,6 @@ Can be played/run here: [here](https://acasez.github.io/would-would-win/).
 
 # Example of a list of characters
 Cause everyone has a google sheet of their favorite characters, right?
+
+
 <img width="391" height="680" alt="exampleCharacterList" src="https://github.com/user-attachments/assets/7db5fa07-2175-4b0d-b3a5-c2c6e19fd348" />
