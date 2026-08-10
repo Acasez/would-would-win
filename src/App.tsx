@@ -216,6 +216,9 @@ export default function App() {
     const entered = newTopTenIds.filter((id) => !prevTopTenIds.includes(id));
     const exited = prevTopTenIds.filter((id) => !newTopTenIds.includes(id));
 
+    // Exit early if nothing changed
+    if (entered.length === 0 && exited.length === 0) return;
+
     const notices: { name: string; type: "in" | "out" }[] = [
       ...entered.map((id) => ({
         name: updatedChars.find((c) => c.id === id)?.name || "",
@@ -227,17 +230,16 @@ export default function App() {
       })),
     ];
 
-    if (notices.length > 0) {
-      setTopTenNotices(notices);
-      //setTimeout(() => setTopTenNotices([]), 5000);
-    }
-
+    setTopTenNotices(notices);
     topTenRef.current = newTopTenIds;
   };
 
   const handleVote = useCallback(
     (winnerId: number) => {
       if (!leftChar || !rightChar) return;
+
+      // Clear any existing notices at start of vote
+      setTopTenNotices([]);
 
       const loserId = winnerId === leftChar.id ? rightChar.id : leftChar.id;
       const winner = characters.find((c) => c.id === winnerId)!;
@@ -264,7 +266,7 @@ export default function App() {
       setCharacters([...updatedChars]);
       pickNewPair();
     },
-    [leftChar, rightChar, characters, pickNewPair], // ← Note: removed topTenNotices from deps
+    [leftChar, rightChar, characters, pickNewPair],
   );
 
   const handleUndo = useCallback(() => {
