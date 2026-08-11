@@ -1,5 +1,4 @@
-// BattleCard.tsx
-import { type ICharacter } from "../App"; // ← Import from types, not App
+import { type ICharacter } from "../App";
 
 interface BattleCardProps {
   character: ICharacter;

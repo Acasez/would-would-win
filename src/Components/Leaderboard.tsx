@@ -1,4 +1,4 @@
-import { type ICharacter } from "./App";
+import { type ICharacter } from "../App";
 // Leaderboard.tsx
 interface LeaderboardProps {
   characters: ICharacter[];

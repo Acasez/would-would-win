@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import ControlsHint from "./ControlsHint.tsx";
-import CSVImportInstructions from "./CSVImportInstructions.tsx";
-import Leaderboard from "./Leaderboard.tsx";
+import ControlsHint from "./Components/ControlsHint.tsx";
+import CSVImportInstructions from "./Components/CSVImportInstructions.tsx";
+import Leaderboard from "./Components/Leaderboard.tsx";
 import BattleCard from "./Components/BattleCard.tsx";
 
 export interface ICharacter {
