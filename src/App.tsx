@@ -22,6 +22,7 @@ interface IMatchHistory {
 }
 
 const K_FACTOR = 48;
+const MIN_ELO_BEFORE_DROPPING = 800;
 
 function calculateNewElo(
   winnerId: number,
@@ -87,6 +88,7 @@ export default function App() {
       type: "in" | "out";
     }[]
   >([]);
+  const [eloRemovalNotices, setEloRemovalNotices] = useState<string[]>([]);
   const topTenRef = useRef<number[]>([]); // Store IDs of previous top 10
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -240,6 +242,7 @@ export default function App() {
 
       // Clear any existing notices at start of vote
       setTopTenNotices([]);
+      setEloRemovalNotices([]);
 
       const loserId = winnerId === leftChar.id ? rightChar.id : leftChar.id;
       const winner = characters.find((c) => c.id === winnerId)!;
@@ -259,11 +262,25 @@ export default function App() {
       updatedChars[winnersIndex].wins++;
       updatedChars[losersIndex].losses++;
 
-      if (updatedChars.length >= MIN_CHARS_FOR_TOP_TEN_NOTICES) {
-        updateTopTen(updatedChars);
+      // Check for characters below 800 ELO
+      const removedCharacters: string[] = [];
+      const filteredChars = updatedChars.filter((char) => {
+        if (char.elo < MIN_ELO_BEFORE_DROPPING) {
+          removedCharacters.push(char.name);
+          return false;
+        }
+        return true;
+      });
+
+      if (removedCharacters.length > 0) {
+        setEloRemovalNotices(removedCharacters);
       }
 
-      setCharacters([...updatedChars]);
+      if (filteredChars.length >= MIN_CHARS_FOR_TOP_TEN_NOTICES) {
+        updateTopTen(filteredChars);
+      }
+
+      setCharacters([...filteredChars]);
       pickNewPair();
     },
     [leftChar, rightChar, characters, pickNewPair],
@@ -400,6 +417,31 @@ export default function App() {
                 <strong>{n.name}</strong>{" "}
                 {n.type === "in" ? "moved into" : "fell out of"} top 10
                 {i < topTenNotices.length - 1 ? ", " : ""}
+              </span>
+            ))}
+          </span>
+        </div>
+      )}
+
+      {eloRemovalNotices.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0.75rem 1.25rem",
+            marginBottom: "1.5rem",
+            backgroundColor: "#ffebee",
+            border: "1px solid #ef9a9a",
+            borderRadius: "8px",
+          }}
+        >
+          <span style={{ fontSize: "1.2rem" }}>💀</span>
+          <span style={{ fontSize: "0.9rem", color: "#c62828" }}>
+            {eloRemovalNotices.map((name, i) => (
+              <span key={i}>
+                <strong>{name}</strong> fell below 800 ELO and was removed
+                {i < eloRemovalNotices.length - 1 ? ", " : ""}
               </span>
             ))}
           </span>
